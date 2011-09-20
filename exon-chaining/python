@@ -1,0 +1,64 @@
+#! /usr/bin/env python3
+
+import sys
+import fileinput
+import math
+
+class Node:
+    def __init__(self, location, score, startNode = None):
+        self.location = location
+        self.score = score
+        self.startNode = startNode
+        self.isEnd = self.startNode != None
+
+def buildGraphFromInput(lines):
+    # skip lines that we don't care about DNA length, DNA sequence, Prediction Count
+    skipCount = int(math.ceil(float(lines[0]) / 80.0)) + 2
+
+    graph = []
+    #read file and initializes nodes in graph
+    for line in lines[skipCount:]:
+        if len(line.strip()) == 0:
+            continue
+
+        #parse line
+        start,end,score = [int(num.strip()) for num in line.split()]
+
+        #initialize node
+        startNode = Node(start, score)
+        endNode = Node(end, score, startNode)
+
+        #add nodes to graph
+        graph.extend([startNode, endNode])
+
+    #sort graph and initialize index references on each node
+    graph.sort(key=lambda a: a.location)
+
+    for i,n in enumerate(graph):
+        n.index = i
+
+    return graph
+
+def getScore(graph):
+    scores = [0]
+
+    for node in graph:
+        if not node.isEnd:
+            scores.append(scores[-1])
+        else:
+            scoreIndex = node.startNode.index
+            score = node.score
+
+            newScore = max(scores[scoreIndex] + score, scores[-1])
+            scores.append(newScore)
+
+    return scores[-1]
+
+if __name__ == "__main__":
+    #build/initialize graph
+    graph = buildGraphFromInput([l for l in fileinput.input()])
+
+    #score the graph
+    score = getScore(graph)
+
+    print(score)
