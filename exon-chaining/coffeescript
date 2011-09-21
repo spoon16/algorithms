@@ -1,0 +1,31 @@
+#! /usr/bin/env coffee
+
+# NAME
+#   Exon Chaining
+#
+# DESCRIPTION
+#    A simple implementation of the Exon Chaining algorithm.  Input is 
+#    read from standard in (piped in) or from a file specified as a 
+#    command line argument.
+#
+# AUTHOR
+#    Written by Eric Schoonover (spoon16@gmail.com)
+
+fs = require 'fs'
+
+fn = process.argv[2]
+
+process_graph = (data) ->
+    process.stdout.write data
+
+data = ''
+if fn
+    data = fs.readFile(fn).toString()
+    process_graph(data)
+else
+    stdin = process.openStdin()
+    stdin.on 'data', (chunk) ->
+        data += chunk if chunk
+    stdin.on 'end', ->
+        process_graph(data)
+
