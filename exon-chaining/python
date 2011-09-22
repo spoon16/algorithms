@@ -32,7 +32,7 @@ def buildGraphFromInput(lines):
         graph.extend([startNode, endNode])
 
     #sort graph and initialize index references on each node
-    graph.sort(key=lambda a: a.location)
+    graph.sort(key=lambda a: (a.location, a.startNode.location if a.startNode else -1))
 
     for i,n in enumerate(graph):
         n.index = i

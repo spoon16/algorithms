@@ -1,31 +1,77 @@
 #! /usr/bin/env coffee
-
-# NAME
-#   Exon Chaining
-#
-# DESCRIPTION
-#    A simple implementation of the Exon Chaining algorithm.  Input is 
-#    read from standard in (piped in) or from a file specified as a 
-#    command line argument.
-#
-# AUTHOR
-#    Written by Eric Schoonover (spoon16@gmail.com)
-
 fs = require 'fs'
 
 fn = process.argv[2]
 
-process_graph = (data) ->
-    process.stdout.write data
+String::strip = () -> 
+    @replace /^\s+|\s+$/g, ""
 
-data = ''
+#String::split = () ->
+#    @split /\s+/
+
+Array::union = (other) ->
+    Array::push.apply @, other
+
+print = (values...) ->
+    process.stdout.write values.toString() + '\n'
+
+class Node
+    constructor: (@location, @score, @startNode) ->
+        @isEnd = true if @startNode
+
+build_graph_from_input = (lines) ->
+    skipCount = Math.ceil (parseFloat lines[0]  / 80.0) + 2
+
+    graph = []
+    for line in lines[skipCount..lines.length]
+        if line.strip().length > 0
+            [start,stop,score] = (parseInt num.strip() for num in line.split /\s+/)
+            
+            startNode = new Node start, score
+            stopNode = new Node stop, score, startNode
+
+            graph.union [startNode, stopNode]
+
+    graph.sort (a, b) ->
+        if a.location == b.location
+            (a.startNode?.location or -1) - (b.startNode?.location or -1)
+        else
+            a.location - b.location
+
+    for i in [0..graph.length - 1]
+        graph[i]['index'] = i
+
+    graph
+
+get_score = (graph) ->
+    scores = [0]
+
+    for node in graph
+        lastScore = scores[scores.length - 1]
+        if not node.isEnd
+            scores[scores.length] = lastScore
+        else
+            scoreIndex = node.startNode.index
+            score = node.score
+            newScore = Math.max scores[scoreIndex] + score, lastScore
+            scores[scores.length] = newScore
+
+    scores[scores.length - 1]
+
+process_input = (lines) ->
+    graph = build_graph_from_input lines
+    print get_score graph
+
 if fn
-    data = fs.readFile(fn).toString()
-    process_graph(data)
+    fs.readFile fn, (err, input) ->
+        throw err if err
+        lines = input.toString().split '\n'
+        process_input lines
 else
     stdin = process.openStdin()
+    data = ''
     stdin.on 'data', (chunk) ->
-        data += chunk if chunk
+         data += chunk.toString() if chunk
     stdin.on 'end', ->
-        process_graph(data)
-
+        lines = data.split '\n'
+        process_input lines
