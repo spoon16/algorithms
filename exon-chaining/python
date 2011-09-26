@@ -12,12 +12,9 @@ class Node:
         self.isEnd = self.startNode != None
 
 def buildGraphFromInput(lines):
-    # skip lines that we don't care about DNA length, DNA sequence, Prediction Count
-    skipCount = int(math.ceil(float(lines[0]) / 80.0)) + 2
-
     graph = []
     #read file and initializes nodes in graph
-    for line in lines[skipCount:]:
+    for line in lines:
         if len(line.strip()) == 0:
             continue
 

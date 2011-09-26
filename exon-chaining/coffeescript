@@ -20,10 +20,8 @@ class Node
         @isEnd = true if @startNode
 
 build_graph_from_input = (lines) ->
-    skipCount = Math.ceil (parseFloat lines[0]  / 80.0) + 2
-
     graph = []
-    for line in lines[skipCount..lines.length]
+    for line in lines
         if line.strip().length > 0
             [start,stop,score] = (parseInt num.strip() for num in line.split /\s+/)
             

@@ -22,19 +22,14 @@ if __name__ == '__main__':
 
     random.seed(seed)
 
-    print(length)
-    for i in range(0, length):
-        if i != 0 and i % 80 == 0:
-            print()
-        print("ACGT"[random.randrange(4)], end="")
-
-    print()
-    print(count)
-
     maxWidth = round(math.ceil(math.sqrt(length)))
+    graph = []
     for i in range(0, count):
         width = random.randrange(maxWidth)
         start = random.randrange(length - maxWidth)
         end = start + width
         score = (1 + random.randrange(1 + width))
-        print(start, end, score)
+        graph.append((start, end, score))
+
+    for n in graph:
+        print(n[0], n[1], n[2])
