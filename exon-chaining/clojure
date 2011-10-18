@@ -62,3 +62,7 @@
   (let [score [0]]
     (reduce score-node score g)
     (pop score)))
+
+; executing the algorithm at the REPL
+; (load-file "/src/algorithms/exon-chaining/clojure")
+; (score-graph (build-graph "/src/algorithms/exon-chaining/input"))
