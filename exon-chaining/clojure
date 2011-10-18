@@ -3,7 +3,7 @@
 
 ; each line in the input files represents a subsequence and will be converted into two nodes
 ; one representing the beginning of the subsequence and the other representing the end
-(defrecord Node [location score]) ; may also have startNode, index
+(defrecord Point [key]) ; may also have score, left, index
 
 (defn split-line
   "splits a line into three numbers; start, end, score"
@@ -12,56 +12,50 @@
     (if (not (string/blank? l))
       (string/split l #"\s+"))))
 
-(defn line-to-nodes
-  "convert a single line into a start and end node"
+(defn line-to-points
+  "convert a single line into an exon candidate with a left and right entry"
   [l]
   (let [parts (split-line l)]
     (if parts
       (let [parts (into [] (map read-string parts)) ; read-string used to convert string to number
-          start (get parts 0)
-          end (get parts 1)
+          lpos (get parts 0)
+          rpos (get parts 1)
           score (get parts 2)
-          startNode (Node. start score)
-          endNode (assoc (Node. end score) :startNode startNode)]
-        [startNode endNode]))))
+          left (Point. [lpos -1])
+          right (assoc (Point. [rpos lpos]) :score score :left left)]
+        [left right]))))
 
 (defn process-file
   "read and execute a function on each line of a file, output a vector of the results"
   [path line-fn]
   (keep line-fn (io/read-lines path)))
 
-(defn build-graph
+(defn end-node?
+  "checks whether the current node references a :left, if so the node is the end of a subsequence"
+  [n] 
+  (if (:left n) true false))
+
+(defn build-gene-graph
   "read each line in file and initializes nodes then sort and index to build graph ready for scoring"
   [path]
-  (map-indexed #(assoc %2 :index %1) ; BUG: this does not work in clojure because of immutability rules, :startNode ends up referencing a node instance with no :index
-    (sort-by
-      #(vector (-> % :location)
-        (if (-> % :startNode)
-          (-> % :startNode :location)
-          -1))
-      (reduce concat (process-file path line-to-nodes)))))
-
-(defn end-node?
-  "checks whether the current node references a :startNode, if so the node is the end of a subsequence"
-  [n] 
-  (if (-> n :startNode) true false))
+  (let 
+    [sorted-points (sort-by #(-> % :key) (reduce concat (process-file path line-to-points)))
+      index-map (reduce #(assoc %1 %2 (count %1)) {} sorted-points)]
+    (map #(if (end-node? %) (dissoc (assoc % :left (index-map (get % :left))) :key) nil) sorted-points)))
 
 (defn score-node
   "calculates the score for a given node and adds it to the score vector"
   [s n]
   (if (not (end-node? n))
     (conj s (peek s))
-    (let [scoreIndex (-> n :startNode :index)
-      score (-> n :score)]
-      (println [scoreIndex score])
+    (let [scoreIndex (:left n)
+      score (:score n)]
       (conj s (max (+ (get s scoreIndex) score) (peek s))))))
 
 (defn score-graph
   "iterates over a graph of nodes and generates the score"
   [g]
-  (let [score [0]]
-    (reduce score-node score g)
-    (pop score)))
+  (peek (reduce score-node [0] g)))
 
 ; executing the algorithm at the REPL
 ; (load-file "/src/algorithms/exon-chaining/clojure")
