@@ -1,61 +1,66 @@
 (require '[clojure.contrib.io :as io])
 (require '[clojure.string :as string]) ; same as (require '(clojure [string :as string]))
 
-; each line in the input files represents a subsequence and will be converted into two nodes
+; each line in the input files represents a subsequence and will be converted into two Points
 ; one representing the beginning of the subsequence and the other representing the end
 (defrecord Point [key]) ; may also have score, left, index
 
-(defn split-line
-  "splits a line into three numbers; start, end, score"
-  [l]
-  (let [l (string/trim l)]
-    (if (not (string/blank? l))
-      (string/split l #"\s+"))))
-
 (defn line-to-points
-  "convert a single line into an exon candidate with a left and right entry"
+  "convert a single line into a subsequnce with a left and right point"
   [l]
-  (let [parts (split-line l)]
-    (if parts
-      (let [parts (into [] (map read-string parts)) ; read-string used to convert string to number
-          lpos (get parts 0)
-          rpos (get parts 1)
-          score (get parts 2)
-          left (Point. [lpos -1])
-          right (assoc (Point. [rpos lpos]) :score score :left left)]
-        [left right]))))
+  (letfn [(split-line []
+    (let [l (string/trim l)]
+      (if (not (string/blank? l))
+        (map read-string (string/split l #"\s+")))))]
+    (let [parts (split-line)]
+      (if parts
+        (let [parts (into [] parts) ; read-string used to convert string to number
+            lpos (get parts 0)
+            lkey [lpos -1]
+            rpos (get parts 1)
+            rkey [rpos lpos]
+            score (get parts 2)
+            left (Point. lkey)
+            right (assoc (Point. rkey) :score score :left lkey)]
+          [left right])))))
 
 (defn process-file
-  "read and execute a function on each line of a file, output a vector of the results"
+  "read and execute a function on each line of a file, output a sequence of results"
   [path line-fn]
   (keep line-fn (io/read-lines path)))
 
-(defn end-node?
-  "checks whether the current node references a :left, if so the node is the end of a subsequence"
-  [n] 
-  (if (:left n) true false))
+(defn end-point?
+  "checks whether the current point references a :left, if so the point is the end of a subsequence"
+  [p] 
+  (if (contains? p :left) true false))
 
-(defn build-gene-graph
-  "read each line in file and initializes nodes then sort and index to build graph ready for scoring"
-  [path]
-  (let 
-    [sorted-points (sort-by #(-> % :key) (reduce concat (process-file path line-to-points)))
-      index-map (reduce #(assoc %1 %2 (count %1)) {} sorted-points)]
-    (map #(if (end-node? %) (dissoc (assoc % :left (index-map (get % :left))) :key) nil) sorted-points)))
-
-(defn score-node
-  "calculates the score for a given node and adds it to the score vector"
-  [s n]
-  (if (not (end-node? n))
-    (conj s (peek s))
-    (let [scoreIndex (:left n)
-      score (:score n)]
-      (conj s (max (+ (get s scoreIndex) score) (peek s))))))
+(letfn [(sort-points [points] (sort-by #(:key %) points))
+  (filter-indexed-left [points]
+    (keep-indexed #(when (not (end-point? %2)) [%2 %1]) points))
+  (assoc-left-key [index-map [left-point left-index :as left-point-and-index]]
+    (let [ left-key (:key left-point) ]
+      (if (contains? index-map left-key)
+        index-map
+        (assoc index-map left-key left-index))))]
+  (defn build-graph
+    "read each line in file and initializes nodes then sort and index to build graph ready for scoring"
+    [path]
+    (let [points (apply concat (process-file path line-to-points))
+        sorted-points (sort-points points)
+        index-map (reduce assoc-left-key {} (filter-indexed-left sorted-points))]
+      (list sorted-points index-map))))
 
 (defn score-graph
   "iterates over a graph of nodes and generates the score"
-  [g]
-  (peek (reduce score-node [0] g)))
+  [[sorted-points index-map :as g]]
+  (letfn [(score-node [scores point]
+    (if (end-point? point)
+      (let [score (:score point)
+        leftScore (get scores (get index-map (:left point)))
+        lastScore (peek scores)]
+        (conj scores (max (+ leftScore score) lastScore)))
+      (conj scores (peek scores))))]
+    (peek (reduce score-node [0] sorted-points))))
 
 ; executing the algorithm at the REPL
 ; (load-file "/src/algorithms/exon-chaining/clojure")
