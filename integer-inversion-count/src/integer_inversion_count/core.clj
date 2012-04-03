@@ -10,7 +10,7 @@
          merged []
          [fl & rl :as l] left
          [fr & rr :as r] right]
-    (cond
+    (ccond
      (or (nil? fl) (nil? fr)) (let [rest (or (seq l) (seq r))
                                     rest-merged (into merged rest)]
                                 [inversions rest-merged])
